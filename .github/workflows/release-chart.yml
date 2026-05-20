@@ -1,0 +1,68 @@
+name: release-chart
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Chart.yaml
+      - values.yaml
+      - templates/**
+      - .helmignore
+      - .github/workflows/release-chart.yml
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+
+      - name: Read chart version
+        id: chart
+        run: echo "version=$(awk '/^version:/{print $2}' Chart.yaml)" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if version already published
+        id: check
+        run: |
+          if git fetch origin gh-pages 2>/dev/null && \
+             git show origin/gh-pages:index.yaml 2>/dev/null \
+               | grep -q "version: ${{ steps.chart.outputs.version }}$"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package chart
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          mkdir -p packaged
+          helm package . -d packaged
+
+      - name: Publish to gh-pages
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          if git ls-remote --exit-code origin gh-pages >/dev/null 2>&1; then
+            git worktree add gh-pages-tree origin/gh-pages
+          else
+            git worktree add --orphan -b gh-pages gh-pages-tree
+            rm -rf gh-pages-tree/* gh-pages-tree/.gitignore 2>/dev/null || true
+          fi
+          cp packaged/*.tgz gh-pages-tree/
+          cd gh-pages-tree
+          base_url="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          if [ -f index.yaml ]; then
+            helm repo index . --url "$base_url" --merge index.yaml
+          else
+            helm repo index . --url "$base_url"
+          fi
+          git add .
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "publish static-webhost ${{ steps.chart.outputs.version }}"
+          git push origin gh-pages
