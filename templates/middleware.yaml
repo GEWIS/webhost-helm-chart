@@ -1,0 +1,37 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ include "static-webhost.fullname" . }}-auth
+  labels:
+    {{- include "static-webhost.labels" . | nindent 4 }}
+spec:
+  plugin:
+    traefik-oidc-auth:
+      Authorization:
+        AssertClaims:
+          - Name: groups
+            AnyOf:
+              {{- range .Values.oidc.groups }}
+              - {{ . | quote }}
+              {{- end }}
+      Provider:
+        ClientId: {{ .Values.oidc.provider.clientId | quote }}
+        ClientSecret: urn:k8s:secret:oidc-secret:providerClientSecret
+        Url: {{ .Values.oidc.provider.url | quote }}
+        ValidAudience: {{ .Values.oidc.provider.validAudience | quote }}
+      Scopes:
+        {{- range .Values.oidc.scopes }}
+        - {{ . | quote }}
+        {{- end }}
+      Secret: urn:k8s:secret:oidc-secret:pluginSecret
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ include "static-webhost.fullname" . }}-strip-admin
+  labels:
+    {{- include "static-webhost.labels" . | nindent 4 }}
+spec:
+  stripPrefix:
+    prefixes:
+      - /admin

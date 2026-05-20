@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "static-webhost.fullname" . }}-caddy
+  labels:
+    {{- include "static-webhost.labels" . | nindent 4 }}
+    app.kubernetes.io/component: caddy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "caddy") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "caddy") | nindent 8 }}
+    spec:
+      containers:
+        - name: caddy
+          image: "{{ .Values.caddy.image.repository }}:{{ .Values.caddy.image.tag }}"
+          imagePullPolicy: {{ .Values.caddy.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /srv
+              readOnly: true
+            - name: caddyfile
+              mountPath: /etc/caddy/Caddyfile
+              subPath: Caddyfile
+          {{- with .Values.caddy.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "static-webhost.fullname" . }}-data
+        - name: caddyfile
+          configMap:
+            name: {{ include "static-webhost.fullname" . }}-caddy

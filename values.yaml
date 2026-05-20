@@ -1,0 +1,49 @@
+# Default values for static-webhost.
+# This is a YAML-formatted file.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Persistent storage shared (RWX) between the code-server editor and the caddy webserver.
+storage:
+  # Size of the shared volume.
+  size: 10Gi
+  # accessModes left fixed at ReadWriteMany; storageClassName intentionally unset
+  # so the cluster default RWX provisioner is used.
+
+# Hostnames exposed via the IngressRoute. All domains route to Caddy unauthenticated;
+# the first domain additionally exposes /admin → code-server behind OIDC.
+domains:
+  - example.gewis.nl
+
+# OIDC auth via traefik-oidc-auth plugin. Groups listed here are allowed in.
+oidc:
+  groups:
+    - CBC - Application Hosting Team (ADM)
+  provider:
+    url: https://auth.gewis.nl/realms/GEWISWG
+    clientId: traefik-auth
+    validAudience: traefik-auth
+  scopes:
+    - openid
+    - profile
+    - email
+  # The actual secret values are reflected in from shared-secrets/oidc-auth
+  # by emberstack reflector; this chart only mirrors the empty Secret shell.
+  secretReflectsFrom: shared-secrets/oidc-auth
+
+# code-server (VS Code in the browser) — edits the shared volume.
+codeServer:
+  image:
+    repository: codercom/code-server
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources: {}
+
+# Caddy — serves the shared volume as static files.
+caddy:
+  image:
+    repository: caddy
+    tag: 2-alpine
+    pullPolicy: IfNotPresent
+  resources: {}

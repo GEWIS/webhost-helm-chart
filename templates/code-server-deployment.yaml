@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "static-webhost.fullname" . }}-code-server
+  labels:
+    {{- include "static-webhost.labels" . | nindent 4 }}
+    app.kubernetes.io/component: code-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "code-server") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "code-server") | nindent 8 }}
+    spec:
+      containers:
+        - name: code-server
+          image: "{{ .Values.codeServer.image.repository }}:{{ .Values.codeServer.image.tag }}"
+          imagePullPolicy: {{ .Values.codeServer.image.pullPolicy }}
+          args:
+            - --bind-addr=0.0.0.0:8080
+            - --auth=none
+            - /srv
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /srv
+          {{- with .Values.codeServer.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "static-webhost.fullname" . }}-data

@@ -1,0 +1,26 @@
+{{- $fullName := include "static-webhost.fullname" . -}}
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "static-webhost.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    {{- range $d := .Values.domains }}
+    - kind: Rule
+      match: Host(`{{ $d }}`)
+      services:
+        - name: {{ $fullName }}-caddy
+          port: 80
+    {{- end }}
+    - kind: Rule
+      match: Host(`{{ index .Values.domains 0 }}`) && PathPrefix(`/admin`)
+      middlewares:
+        - name: {{ $fullName }}-auth
+        - name: {{ $fullName }}-strip-admin
+      services:
+        - name: {{ $fullName }}-code-server
+          port: 8080
