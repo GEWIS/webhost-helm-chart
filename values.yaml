@@ -16,10 +16,11 @@ storage:
 domains:
   - example.gewis.nl
 
-# OIDC auth via traefik-oidc-auth plugin. Groups listed here are allowed in.
+# OIDC auth via traefik-oidc-auth plugin. "CBC - Application Hosting Team (ADM)"
+# always has access (hardcoded in templates/middleware.yaml); any groups listed
+# here are additionally allowed in.
 oidc:
-  groups:
-    - CBC - Application Hosting Team (ADM)
+  groups: []
   provider:
     url: https://auth.gewis.nl/realms/GEWISWG
     clientId: traefik-auth

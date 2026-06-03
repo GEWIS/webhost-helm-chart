@@ -11,6 +11,7 @@ spec:
         AssertClaims:
           - Name: groups
             AnyOf:
+              - "CBC - Application Hosting Team (ADM)"
               {{- range .Values.oidc.groups }}
               - {{ . | quote }}
               {{- end }}
