@@ -19,6 +19,7 @@ spec:
     - kind: Rule
       match: Host(`{{ index .Values.domains 0 }}`) && PathPrefix(`/admin`)
       middlewares:
+        - name: {{ $fullName }}-admin-slash
         - name: {{ $fullName }}-auth
         - name: {{ $fullName }}-strip-admin
       services:
