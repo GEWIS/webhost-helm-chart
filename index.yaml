@@ -3,7 +3,17 @@ entries:
   static-webhost:
   - apiVersion: v2
     appVersion: 1.16.0
-    created: "2026-05-20T19:32:18.940119696Z"
+    created: "2026-06-03T19:19:43.271404628Z"
+    description: A Helm chart for Kubernetes
+    digest: f0719d9da59f5365ebe46f246a01490bf7301b8d0e2ed9471a37ed4b09287808
+    name: static-webhost
+    type: application
+    urls:
+    - https://GEWIS.github.io/webhost-helm-chart/static-webhost-0.1.2.tgz
+    version: 0.1.2
+  - apiVersion: v2
+    appVersion: 1.16.0
+    created: "2026-06-03T19:19:43.27102286Z"
     description: A Helm chart for Kubernetes
     digest: de4a0438e4111e08c3e9035c9dfeac138b59340c933e13874eba87bb58d1fbc1
     name: static-webhost
@@ -11,4 +21,4 @@ entries:
     urls:
     - https://GEWIS.github.io/webhost-helm-chart/static-webhost-0.1.0.tgz
     version: 0.1.0
-generated: "2026-05-20T19:32:18.93957444Z"
+generated: "2026-06-03T19:19:43.270497419Z"
