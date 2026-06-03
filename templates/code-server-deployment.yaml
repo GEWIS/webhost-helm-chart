@@ -19,23 +19,27 @@ spec:
     spec:
       securityContext:
         fsGroup: 1000
-      {{- with .Values.codeServer.extensions }}
       initContainers:
-        - name: install-extensions
-          image: "{{ $.Values.codeServer.image.repository }}:{{ $.Values.codeServer.image.tag }}"
-          imagePullPolicy: {{ $.Values.codeServer.image.pullPolicy }}
+        - name: bootstrap
+          image: "{{ .Values.codeServer.image.repository }}:{{ .Values.codeServer.image.tag }}"
+          imagePullPolicy: {{ .Values.codeServer.image.pullPolicy }}
           command:
             - sh
             - -c
             - |
               set -e
-              {{- range . }}
+              cp /defaults/settings.json /user/settings.json
+              {{- range .Values.codeServer.extensions }}
               code-server --extensions-dir /extensions --install-extension {{ . | quote }}
               {{- end }}
           volumeMounts:
             - name: extensions
               mountPath: /extensions
-      {{- end }}
+            - name: settings-defaults
+              mountPath: /defaults
+              readOnly: true
+            - name: user
+              mountPath: /user
       containers:
         - name: code-server
           image: "{{ .Values.codeServer.image.repository }}:{{ .Values.codeServer.image.tag }}"
@@ -58,9 +62,8 @@ spec:
               subPath: site
             - name: extensions
               mountPath: /extensions
-            - name: settings
-              mountPath: /home/coder/.local/share/code-server/User/settings.json
-              subPath: settings.json
+            - name: user
+              mountPath: /home/coder/.local/share/code-server/User
           {{- with .Values.codeServer.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -71,6 +74,8 @@ spec:
             claimName: {{ include "static-webhost.fullname" . }}-data
         - name: extensions
           emptyDir: {}
-        - name: settings
+        - name: settings-defaults
           configMap:
             name: {{ include "static-webhost.fullname" . }}-code-server-settings
+        - name: user
+          emptyDir: {}
