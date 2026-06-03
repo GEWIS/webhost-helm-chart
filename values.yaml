@@ -33,6 +33,13 @@ oidc:
   # by emberstack reflector; this chart only mirrors the empty Secret shell.
   secretReflectsFrom: shared-secrets/oidc-auth
 
+# Default landing page seeded into an empty volume on first deploy.
+# The seed init container writes index.html and a .initialized sentinel; once
+# the sentinel exists it's a no-op, so user edits via code-server survive
+# subsequent rollouts.
+defaultPage:
+  logoUrl: https://github.com/GEWIS.png
+
 # code-server (VS Code in the browser) — edits the shared volume.
 codeServer:
   image:

@@ -32,6 +32,7 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /srv
+              subPath: site
           {{- with .Values.codeServer.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
