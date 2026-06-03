@@ -48,7 +48,7 @@ jobs:
         if: steps.check.outputs.skip == 'false'
         run: |
           if git ls-remote --exit-code origin gh-pages >/dev/null 2>&1; then
-            git worktree add gh-pages-tree origin/gh-pages
+            git worktree add -B gh-pages gh-pages-tree origin/gh-pages
           else
             git worktree add --orphan -b gh-pages gh-pages-tree
             rm -rf gh-pages-tree/* gh-pages-tree/.gitignore 2>/dev/null || true
