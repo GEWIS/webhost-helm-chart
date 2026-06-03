@@ -17,6 +17,25 @@ spec:
       labels:
         {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "code-server") | nindent 8 }}
     spec:
+      securityContext:
+        fsGroup: 1000
+      {{- with .Values.codeServer.extensions }}
+      initContainers:
+        - name: install-extensions
+          image: "{{ $.Values.codeServer.image.repository }}:{{ $.Values.codeServer.image.tag }}"
+          imagePullPolicy: {{ $.Values.codeServer.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              {{- range . }}
+              code-server --extensions-dir /extensions --install-extension {{ . | quote }}
+              {{- end }}
+          volumeMounts:
+            - name: extensions
+              mountPath: /extensions
+      {{- end }}
       containers:
         - name: code-server
           image: "{{ .Values.codeServer.image.repository }}:{{ .Values.codeServer.image.tag }}"
@@ -24,7 +43,11 @@ spec:
           args:
             - --bind-addr=0.0.0.0:8080
             - --auth=none
+            - --extensions-dir=/extensions
             - /srv
+          env:
+            - name: EXTENSIONS_GALLERY
+              value: "{}"
           ports:
             - name: http
               containerPort: 8080
@@ -33,6 +56,11 @@ spec:
             - name: data
               mountPath: /srv
               subPath: site
+            - name: extensions
+              mountPath: /extensions
+            - name: settings
+              mountPath: /home/coder/.local/share/code-server/User/settings.json
+              subPath: settings.json
           {{- with .Values.codeServer.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -41,3 +69,8 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: {{ include "static-webhost.fullname" . }}-data
+        - name: extensions
+          emptyDir: {}
+        - name: settings
+          configMap:
+            name: {{ include "static-webhost.fullname" . }}-code-server-settings

@@ -47,6 +47,27 @@ codeServer:
     tag: latest
     pullPolicy: IfNotPresent
   resources: {}
+  # Extensions pre-installed by an init container into a per-pod emptyDir.
+  # The marketplace UI is disabled at runtime (EXTENSIONS_GALLERY={}), so the
+  # user can only run what we ship here.
+  extensions:
+    - bmewburn.vscode-intelephense-client
+    - dbaeumer.vscode-eslint
+    - esbenp.prettier-vscode
+  # VS Code user settings rendered into settings.json. Defaults enforce dark
+  # theme, no AI/telemetry, and silence extension recommendations/auto-update.
+  # Override or add keys here.
+  settings:
+    workbench.colorTheme: Default Dark Modern
+    telemetry.telemetryLevel: "off"
+    chat.commandCenter.enabled: false
+    chat.agent.enabled: false
+    chat.editing.enabled: false
+    inlineChat.enabled: false
+    workbench.welcomePage.walkthroughs.openOnInstall: false
+    extensions.autoUpdate: false
+    extensions.autoCheckUpdates: false
+    extensions.ignoreRecommendations: true
 
 # Caddy — serves the shared volume as static files.
 caddy:
