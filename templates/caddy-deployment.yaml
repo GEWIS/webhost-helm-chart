@@ -15,6 +15,8 @@ spec:
       labels:
         {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "caddy") | nindent 8 }}
     spec:
+      securityContext:
+        fsGroup: 1000
       initContainers:
         - name: seed-default-index
           image: "{{ .Values.caddy.image.repository }}:{{ .Values.caddy.image.tag }}"
@@ -25,7 +27,8 @@ spec:
             - |
               if [ ! -f /data/.initialized ]; then
                 mkdir -p /data/site
-                cp /defaults/index.html /data/site/index.html
+                install -m 664 /defaults/index.html /data/site/index.html
+                chmod 775 /data/site
                 touch /data/.initialized
               fi
           volumeMounts:
