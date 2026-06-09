@@ -28,9 +28,13 @@ spec:
               if [ ! -f /data/.initialized ]; then
                 mkdir -p /data/site
                 install -m 664 /defaults/index.html /data/site/index.html
-                chmod 775 /data/site
                 touch /data/.initialized
               fi
+              # Ensure the editor user (UID 1000 in code-server) owns the served dir
+              # and seeded files, so it can edit them. Idempotent — heals PVCs from
+              # earlier chart versions too.
+              chown -R 1000:1000 /data/site
+              chmod 775 /data/site
           volumeMounts:
             - name: data
               mountPath: /data
