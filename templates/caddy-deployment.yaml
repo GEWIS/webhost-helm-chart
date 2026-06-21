@@ -55,7 +55,7 @@ spec:
               subPath: site
               readOnly: true
             - name: caddyfile
-              mountPath: /etc/caddy/Caddyfile
+              mountPath: /etc/frankenphp/Caddyfile
               subPath: Caddyfile
           {{- with .Values.caddy.resources }}
           resources:

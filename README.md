@@ -1,13 +1,14 @@
 # static-webhost
 
-Helm chart for hosting static sites at GEWIS. Each release pairs a Caddy web
-server with an in-browser code-server editor, sharing an RWX volume so files
-can be edited live.
+Helm chart for hosting sites at GEWIS. Each release pairs a FrankenPHP (Caddy with
+embedded PHP) web server with an in-browser code-server editor, sharing an RWX volume
+so files can be edited live. Static files and PHP are both served.
 
 ## What gets deployed
 
 - `PersistentVolumeClaim` — RWX, size from `storage.size`, cluster default storage class.
-- `Deployment` + `Service` — Caddy serving the volume at `/srv` (read-only).
+- `Deployment` + `Service` — FrankenPHP (Caddy + PHP) serving `/srv` read-only; `.php` is
+  executed via `php_server`, everything else served as static files.
 - `Deployment` + `Service` — code-server editing the same volume; runs non-root with a
   read-only root filesystem and (when `networkPolicy.enabled`) DNS-only egress.
 - `Job` — installs `codeServer.extensions` once onto the shared volume and re-runs when
@@ -91,7 +92,9 @@ helm install myapp gewis-webhost/static-webhost \
 | `oidc.groups` | Group names allowed through the OIDC middleware | `[CBC - Application Hosting Team (ADM)]` |
 | `oidc.provider.url` | OIDC issuer URL | GEWISWG realm |
 | `oidc.secretReflectsFrom` | Source for the reflected OIDC secret | `shared-secrets/oidc-auth` |
-| `codeServer.image` / `caddy.image` | Container images | upstream `latest` / `2-alpine` |
+| `codeServer.image` | code-server editor image | `codercom/code-server:4.125.0` |
+| `caddy.image` | Web server image (FrankenPHP = Caddy + PHP) | `dunglas/frankenphp:1-php8.3-alpine` |
+| `networkPolicy.enabled` | Restrict code-server egress to DNS only | `true` |
 
 See [`values.yaml`](./values.yaml) for the full schema.
 

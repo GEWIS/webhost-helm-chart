@@ -7,7 +7,13 @@ metadata:
     app.kubernetes.io/component: caddy
 data:
   Caddyfile: |
+    {
+      frankenphp
+      auto_https off
+    }
+
     :8080 {
       root * /srv
-      file_server browse
+      encode zstd br gzip
+      php_server
     }

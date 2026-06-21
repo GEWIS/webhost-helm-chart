@@ -88,11 +88,12 @@ codeServer:
     chat.editing.enabled: false
     chat.tools.global.autoApprove: false
     inlineChat.enabled: false
+    php.suggest.basic: false
+    php.validate.enable: false
 
-# Caddy — serves the shared volume as static files.
 caddy:
   image:
-    repository: caddy
-    tag: 2-alpine
+    repository: dunglas/frankenphp
+    tag: "1-php8.3-alpine"
     pullPolicy: IfNotPresent
   resources: {}
