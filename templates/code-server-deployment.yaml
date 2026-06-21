@@ -36,10 +36,14 @@ spec:
             - |
               set -e
               mkdir -p /home/coder/.local/share/code-server/User
+              cp /defaults/settings.json /home/coder/.local/share/code-server/User/settings.json
               until [ -f /extensions/.installed-{{ $extHash }} ]; do sleep 2; done
           volumeMounts:
             - name: home
               mountPath: /home/coder
+            - name: settings
+              mountPath: /defaults
+              readOnly: true
             - name: data
               mountPath: /extensions
               subPath: extensions
@@ -80,10 +84,6 @@ spec:
               mountPath: /home/coder
             - name: xdg-runtime
               mountPath: /run/user/1000
-            - name: settings
-              mountPath: /home/coder/.local/share/code-server/User/settings.json
-              subPath: settings.json
-              readOnly: true
           {{- with .Values.codeServer.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

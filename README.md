@@ -8,12 +8,26 @@ can be edited live.
 
 - `PersistentVolumeClaim` — RWX, size from `storage.size`, cluster default storage class.
 - `Deployment` + `Service` — Caddy serving the volume at `/srv` (read-only).
-- `Deployment` + `Service` — code-server mounting the same volume read-write.
+- `Deployment` + `Service` — code-server editing the same volume; runs non-root with a
+  read-only root filesystem and (when `networkPolicy.enabled`) DNS-only egress.
+- `Job` — installs `codeServer.extensions` once onto the shared volume and re-runs when
+  the list changes; the only component allowed to reach the extension gallery.
+- `NetworkPolicy` — denies code-server egress except DNS. Requires a CNI that enforces it.
 - `IngressRoute` (Traefik) — every entry in `domains` routes to Caddy.
   The first domain additionally exposes `/admin` → code-server, gated by OIDC.
 - `Middleware` ×2 — `traefik-oidc-auth` and `stripPrefix /admin`.
 - `Secret oidc-secret` — empty shell annotated for reflection from
   `shared-secrets/oidc-auth` by the emberstack reflector.
+
+## Security posture
+
+code-server is the only interactive surface, so it is locked down: non-root, read-only
+root filesystem, all capabilities dropped, no service-account token, and DNS-only egress
+(`networkPolicy.enabled`). The integrated terminal is enabled — safe because egress is
+blocked, the rootfs is read-only, and nothing sensitive is mounted. Extensions are
+pre-installed read-only and the marketplace is disabled, so the editor runs only what the
+chart ships. User `settings.json` is seeded from the chart on each start; in-session edits
+are allowed but reset to the chart defaults on every pod restart.
 
 ## Install via Flux
 
