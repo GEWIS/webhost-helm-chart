@@ -17,6 +17,7 @@ spec:
     metadata:
       annotations:
         checksum/extensions: {{ $extHash }}
+        checksum/settings: {{ include (print $.Template.BasePath "/code-server-settings-configmap.yaml") . | sha256sum }}
       labels:
         {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "code-server") | nindent 8 }}
     spec:
