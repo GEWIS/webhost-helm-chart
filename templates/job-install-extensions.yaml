@@ -1,0 +1,43 @@
+{{- $extHash := .Values.codeServer.extensions | toJson | sha256sum | trunc 10 }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-ext-%s" (include "static-webhost.fullname" .) $extHash | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "static-webhost.labels" . | nindent 4 }}
+    app.kubernetes.io/component: install-extensions
+spec:
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "install-extensions") | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+      containers:
+        - name: install
+          image: "{{ .Values.codeServer.image.repository }}:{{ .Values.codeServer.image.tag }}"
+          imagePullPolicy: {{ .Values.codeServer.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              find /extensions -mindepth 1 -delete
+              {{- range .Values.codeServer.extensions }}
+              code-server --extensions-dir /extensions --install-extension {{ . | quote }}
+              {{- end }}
+              touch /extensions/.installed-{{ $extHash }}
+              chown -R 1000:1000 /extensions
+          volumeMounts:
+            - name: data
+              mountPath: /extensions
+              subPath: extensions
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "static-webhost.fullname" . }}-data

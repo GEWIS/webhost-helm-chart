@@ -1,3 +1,4 @@
+{{- $extHash := .Values.codeServer.extensions | toJson | sha256sum | trunc 10 }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,13 +15,19 @@ spec:
       {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "code-server") | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/extensions: {{ $extHash }}
       labels:
         {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "code-server") | nindent 8 }}
     spec:
+      automountServiceAccountToken: false
       securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
         fsGroup: 1000
       initContainers:
-        - name: bootstrap
+        - name: wait-extensions
           image: "{{ .Values.codeServer.image.repository }}:{{ .Values.codeServer.image.tag }}"
           imagePullPolicy: {{ .Values.codeServer.image.pullPolicy }}
           command:
@@ -28,22 +35,25 @@ spec:
             - -c
             - |
               set -e
-              cp /defaults/settings.json /user/settings.json
-              {{- range .Values.codeServer.extensions }}
-              code-server --extensions-dir /extensions --install-extension {{ . | quote }}
-              {{- end }}
+              mkdir -p /home/coder/.local/share/code-server/User
+              until [ -f /extensions/.installed-{{ $extHash }} ]; do sleep 2; done
           volumeMounts:
-            - name: extensions
+            - name: home
+              mountPath: /home/coder
+            - name: data
               mountPath: /extensions
-            - name: settings-defaults
-              mountPath: /defaults
+              subPath: extensions
               readOnly: true
-            - name: user
-              mountPath: /user
       containers:
         - name: code-server
           image: "{{ .Values.codeServer.image.repository }}:{{ .Values.codeServer.image.tag }}"
           imagePullPolicy: {{ .Values.codeServer.image.pullPolicy }}
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           args:
             - --bind-addr=0.0.0.0:8080
             - --auth=none
@@ -60,10 +70,20 @@ spec:
             - name: data
               mountPath: /srv
               subPath: site
-            - name: extensions
+            - name: data
               mountPath: /extensions
-            - name: user
-              mountPath: /home/coder/.local/share/code-server/User
+              subPath: extensions
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: home
+              mountPath: /home/coder
+            - name: xdg-runtime
+              mountPath: /run/user/1000
+            - name: settings
+              mountPath: /home/coder/.local/share/code-server/User/settings.json
+              subPath: settings.json
+              readOnly: true
           {{- with .Values.codeServer.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -72,10 +92,12 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: {{ include "static-webhost.fullname" . }}-data
-        - name: extensions
+        - name: tmp
           emptyDir: {}
-        - name: settings-defaults
+        - name: home
+          emptyDir: {}
+        - name: xdg-runtime
+          emptyDir: {}
+        - name: settings
           configMap:
             name: {{ include "static-webhost.fullname" . }}-code-server-settings
-        - name: user
-          emptyDir: {}
