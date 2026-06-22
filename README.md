@@ -84,7 +84,7 @@ spec:
   chart:
     spec:
       chart: static-webhost
-      version: 0.1.0
+      version: 0.6.0
       sourceRef:
         kind: HelmRepository
         name: gewis-webhost
