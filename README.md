@@ -11,8 +11,9 @@ so files can be edited live. Static files and PHP are both served.
   executed via `php_server`, everything else served as static files.
 - `Deployment` + `Service` — code-server editing the same volume; runs non-root with a
   read-only root filesystem and (when `networkPolicy.enabled`) DNS-only egress.
-- `Job` — installs `codeServer.extensions` once onto the shared volume and re-runs when
-  the list changes; the only component allowed to reach the extension gallery.
+- `Job` — installs `codeServer.extensions` (from Open VSX) plus, when `codeServer.phpantom.enabled`,
+  the PHPantom PHP language server (`.vsix` + prebuilt binary) onto the shared volume, and re-runs
+  when any of that changes; the only component allowed egress to fetch them.
 - `NetworkPolicy` — denies code-server egress except DNS. Requires a CNI that enforces it.
 - `IngressRoute` (Traefik) — every entry in `domains` routes to Caddy.
   The first domain additionally exposes `/admin` → code-server, gated by OIDC.

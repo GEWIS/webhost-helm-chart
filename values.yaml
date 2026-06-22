@@ -58,12 +58,12 @@ codeServer:
       cpu: "2"
       memory: 2Gi
   extensions:
-    - bmewburn.vscode-intelephense-client
     - dbaeumer.vscode-eslint
     - esbenp.prettier-vscode
-  # settings.json — mounted read-only into the User dir from the ConfigMap,
-  # so the user cannot persist edits via the UI (the file mount is kernel-
-  # enforced read-only). Override or add keys here.
+  phpantom:
+    enabled: true
+    vsixUrl: "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/phpantom/vsextensions/phpantom/0.4.1/vspackage"
+    binaryUrl: "https://github.com/PHPantom-dev/phpantom_lsp/releases/download/0.8.0/phpantom_lsp-x86_64-unknown-linux-gnu.tar.gz"
   settings:
     window.autoDetectColorScheme: true
     workbench.preferredDarkColorTheme: Default Dark Modern
@@ -90,6 +90,9 @@ codeServer:
     inlineChat.enabled: false
     php.suggest.basic: false
     php.validate.enable: false
+    phpantom.serverPath: /extensions/phpantom-bin/phpantom_lsp
+    phpantom.autoDownload: false
+    phpantom.autoUpdate: false
 
 caddy:
   image:

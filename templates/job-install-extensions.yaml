@@ -1,4 +1,4 @@
-{{- $extHash := .Values.codeServer.extensions | toJson | sha256sum | trunc 10 }}
+{{- $extHash := (dict "ext" .Values.codeServer.extensions "phpantom" .Values.codeServer.phpantom) | toJson | sha256sum | trunc 10 }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -30,6 +30,16 @@ spec:
               find /extensions -mindepth 1 -delete
               {{- range .Values.codeServer.extensions }}
               code-server --extensions-dir /extensions --install-extension {{ . | quote }}
+              {{- end }}
+              {{- if .Values.codeServer.phpantom.enabled }}
+              tmp=$(mktemp -d)
+              curl -sSL --compressed -o "$tmp/phpantom.vsix" {{ .Values.codeServer.phpantom.vsixUrl | quote }}
+              code-server --extensions-dir /extensions --install-extension "$tmp/phpantom.vsix"
+              curl -sSL -o "$tmp/lsp.tar.gz" {{ .Values.codeServer.phpantom.binaryUrl | quote }}
+              tar -xzf "$tmp/lsp.tar.gz" -C "$tmp"
+              mkdir -p /extensions/phpantom-bin
+              cp "$(find "$tmp" -name phpantom_lsp -type f | head -1)" /extensions/phpantom-bin/phpantom_lsp
+              chmod +x /extensions/phpantom-bin/phpantom_lsp
               {{- end }}
               touch /extensions/.installed-{{ $extHash }}
               chown -R 1000:1000 /extensions

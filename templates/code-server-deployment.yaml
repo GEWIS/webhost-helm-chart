@@ -1,4 +1,4 @@
-{{- $extHash := .Values.codeServer.extensions | toJson | sha256sum | trunc 10 }}
+{{- $extHash := (dict "ext" .Values.codeServer.extensions "phpantom" .Values.codeServer.phpantom) | toJson | sha256sum | trunc 10 }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
