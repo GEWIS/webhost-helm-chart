@@ -64,6 +64,7 @@ codeServer:
     enabled: true
     vsixUrl: "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/phpantom/vsextensions/phpantom/0.4.1/vspackage"
     binaryUrl: "https://github.com/PHPantom-dev/phpantom_lsp/releases/download/0.8.0/phpantom_lsp-x86_64-unknown-linux-gnu.tar.gz"
+    binaryDir: /opt/phpantom
   settings:
     window.autoDetectColorScheme: true
     workbench.preferredDarkColorTheme: Default Dark Modern
@@ -72,7 +73,6 @@ codeServer:
     workbench.tips.enabled: false
     workbench.enableExperiments: false
     workbench.settings.enableNaturalLanguageSearch: false
-    workbench.welcomePage.walkthroughs.openOnInstall: false
     extensions.autoUpdate: false
     extensions.autoCheckUpdates: false
     extensions.ignoreRecommendations: true
@@ -84,13 +84,9 @@ codeServer:
     npm.fetchOnlinePackageInfo: false
     chat.disableAIFeatures: true
     chat.agent.enabled: false
-    chat.commandCenter.enabled: false
-    chat.editing.enabled: false
-    chat.tools.global.autoApprove: false
-    inlineChat.enabled: false
     php.suggest.basic: false
     php.validate.enable: false
-    phpantom.serverPath: /extensions/phpantom-bin/phpantom_lsp
+    phpantom.serverPath: /opt/phpantom/phpantom_lsp
     phpantom.autoDownload: false
     phpantom.autoUpdate: false
 

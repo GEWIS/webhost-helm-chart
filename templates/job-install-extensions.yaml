@@ -37,9 +37,9 @@ spec:
               code-server --extensions-dir /extensions --install-extension "$tmp/phpantom.vsix"
               curl -sSL -o "$tmp/lsp.tar.gz" {{ .Values.codeServer.phpantom.binaryUrl | quote }}
               tar -xzf "$tmp/lsp.tar.gz" -C "$tmp"
-              mkdir -p /extensions/phpantom-bin
-              cp "$(find "$tmp" -name phpantom_lsp -type f | head -1)" /extensions/phpantom-bin/phpantom_lsp
-              chmod +x /extensions/phpantom-bin/phpantom_lsp
+              cp "$(find "$tmp" -name phpantom_lsp -type f | head -1)" {{ .Values.codeServer.phpantom.binaryDir }}/phpantom_lsp
+              chmod 755 {{ .Values.codeServer.phpantom.binaryDir }}/phpantom_lsp
+              chown -R 1000:1000 {{ .Values.codeServer.phpantom.binaryDir }}
               {{- end }}
               touch /extensions/.installed-{{ $extHash }}
               chown -R 1000:1000 /extensions
@@ -47,6 +47,11 @@ spec:
             - name: data
               mountPath: /extensions
               subPath: extensions
+            {{- if .Values.codeServer.phpantom.enabled }}
+            - name: data
+              mountPath: {{ .Values.codeServer.phpantom.binaryDir }}
+              subPath: phpantom
+            {{- end }}
       volumes:
         - name: data
           persistentVolumeClaim:

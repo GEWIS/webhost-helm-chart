@@ -79,6 +79,12 @@ spec:
               mountPath: /extensions
               subPath: extensions
               readOnly: true
+            {{- if .Values.codeServer.phpantom.enabled }}
+            - name: data
+              mountPath: {{ .Values.codeServer.phpantom.binaryDir }}
+              subPath: phpantom
+              readOnly: true
+            {{- end }}
             - name: tmp
               mountPath: /tmp
             - name: home
