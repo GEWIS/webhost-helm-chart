@@ -10,7 +10,7 @@ data:
     <html lang="en">
     <head>
       <meta charset="utf-8">
-      <title>{{ index .Values.domains 0 }}</title>
+      <title>__DOMAIN__</title>
       <style>
         html, body { margin: 0; height: 100%; }
         body { display: grid; place-items: center; background: #fff; font-family: system-ui, sans-serif; }

@@ -13,7 +13,22 @@ data:
     }
 
     :8080 {
-      root * /srv
       encode zstd br gzip
-      php_server
+      {{- range $g := .Values.domainGroups }}
+      {{- range $d := $g.domains }}
+      @{{ include "static-webhost.matcher" $d }} host {{ $d }}
+      handle @{{ include "static-webhost.matcher" $d }} {
+        root * /srv/{{ $g.name }}/{{ $d }}
+        php_server
+      }
+      {{- end }}
+      {{- end }}
+      handle {
+        respond 404
+      }
     }
+  prepend.php: |
+    <?php
+    ini_set('open_basedir', $_SERVER['DOCUMENT_ROOT'] . ':/tmp');
+  webhost.ini: |
+    auto_prepend_file = /etc/frankenphp/prepend.php

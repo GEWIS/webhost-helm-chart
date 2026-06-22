@@ -1,25 +1,29 @@
 {{- $extHash := (dict "ext" .Values.codeServer.extensions "phpantom" .Values.codeServer.phpantom) | toJson | sha256sum | trunc 10 }}
+{{- range $g := .Values.domainGroups }}
+{{- $csName := include "static-webhost.codeServerName" (dict "Context" $ "Group" $g.name) }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "static-webhost.fullname" . }}-code-server
+  name: {{ $csName }}
   labels:
-    {{- include "static-webhost.labels" . | nindent 4 }}
+    {{- include "static-webhost.labels" $ | nindent 4 }}
     app.kubernetes.io/component: code-server
+    webhost.gewis.nl/group: {{ $g.name }}
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "code-server") | nindent 6 }}
+      {{- include "static-webhost.codeServerSelectorLabels" (dict "Context" $ "Group" $g.name) | nindent 6 }}
   template:
     metadata:
       annotations:
         checksum/extensions: {{ $extHash }}
-        checksum/settings: {{ include (print $.Template.BasePath "/code-server-settings-configmap.yaml") . | sha256sum }}
+        checksum/settings: {{ include (print $.Template.BasePath "/code-server-settings-configmap.yaml") $ | sha256sum }}
       labels:
-        {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "code-server") | nindent 8 }}
+        {{- include "static-webhost.codeServerSelectorLabels" (dict "Context" $ "Group" $g.name) | nindent 8 }}
     spec:
       automountServiceAccountToken: false
       securityContext:
@@ -28,9 +32,54 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
       initContainers:
+        - name: seed-site
+          image: "{{ $.Values.caddy.image.repository }}:{{ $.Values.caddy.image.tag }}"
+          imagePullPolicy: {{ $.Values.caddy.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              GROUP={{ $g.name | quote }}
+              DOMAINS="{{ range $d := $g.domains }}{{ $d }} {{ end }}"
+              mkdir -p "/data/site/$GROUP" "/data/.state/$GROUP" "/data/site/.archive/$GROUP"
+              for d in $DOMAINS; do
+                mkdir -p "/data/site/$GROUP/$d"
+                if [ ! -f "/data/.state/$GROUP/$d/initialized.json" ]; then
+                  mkdir -p "/data/.state/$GROUP/$d"
+                  sed "s/__DOMAIN__/$d/g" /defaults/index.html > "/data/site/$GROUP/$d/index.html"
+                  printf '{"group":"%s","domain":"%s","managedBy":"static-webhost","chartVersion":"%s","seededAt":"%s"}\n' \
+                    "$GROUP" "$d" {{ $.Chart.Version | quote }} "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                    > "/data/.state/$GROUP/$d/initialized.json"
+                fi
+              done
+              for sdir in "/data/.state/$GROUP"/*/; do
+                [ -d "$sdir" ] || continue
+                d=$(basename "$sdir")
+                case " $DOMAINS " in
+                  *" $d "*) ;;
+                  *)
+                    if [ -d "/data/site/$GROUP/$d" ]; then
+                      mv "/data/site/$GROUP/$d" "/data/site/.archive/$GROUP/$d-$(date -u +%Y%m%dT%H%M%SZ)"
+                    fi
+                    rm -rf "$sdir"
+                    ;;
+                esac
+              done
+              chown -R 1000:1000 "/data/site/$GROUP" "/data/.state/$GROUP"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: default-index
+              mountPath: /defaults
+              readOnly: true
         - name: wait-extensions
-          image: "{{ .Values.codeServer.image.repository }}:{{ .Values.codeServer.image.tag }}"
-          imagePullPolicy: {{ .Values.codeServer.image.pullPolicy }}
+          image: "{{ $.Values.codeServer.image.repository }}:{{ $.Values.codeServer.image.tag }}"
+          imagePullPolicy: {{ $.Values.codeServer.image.pullPolicy }}
           command:
             - sh
             - -c
@@ -51,8 +100,8 @@ spec:
               readOnly: true
       containers:
         - name: code-server
-          image: "{{ .Values.codeServer.image.repository }}:{{ .Values.codeServer.image.tag }}"
-          imagePullPolicy: {{ .Values.codeServer.image.pullPolicy }}
+          image: "{{ $.Values.codeServer.image.repository }}:{{ $.Values.codeServer.image.tag }}"
+          imagePullPolicy: {{ $.Values.codeServer.image.pullPolicy }}
           securityContext:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
@@ -74,14 +123,14 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /srv
-              subPath: site
+              subPath: site/{{ $g.name }}
             - name: data
               mountPath: /extensions
               subPath: extensions
               readOnly: true
-            {{- if .Values.codeServer.phpantom.enabled }}
+            {{- if $.Values.codeServer.phpantom.enabled }}
             - name: data
-              mountPath: {{ .Values.codeServer.phpantom.binaryDir }}
+              mountPath: {{ $.Values.codeServer.phpantom.binaryDir }}
               subPath: phpantom
               readOnly: true
             {{- end }}
@@ -91,14 +140,14 @@ spec:
               mountPath: /home/coder
             - name: xdg-runtime
               mountPath: /run/user/1000
-          {{- with .Values.codeServer.resources }}
+          {{- with $.Values.codeServer.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: {{ include "static-webhost.fullname" . }}-data
+            claimName: {{ include "static-webhost.fullname" $ }}-data
         - name: tmp
           emptyDir: {}
         - name: home
@@ -107,4 +156,8 @@ spec:
           emptyDir: {}
         - name: settings
           configMap:
-            name: {{ include "static-webhost.fullname" . }}-code-server-settings
+            name: {{ include "static-webhost.fullname" $ }}-code-server-settings
+        - name: default-index
+          configMap:
+            name: {{ include "static-webhost.fullname" $ }}-default-index
+{{- end }}

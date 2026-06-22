@@ -1,9 +1,11 @@
+{{- range $g := .Values.domainGroups }}
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: {{ include "static-webhost.fullname" . }}-auth
+  name: {{ include "static-webhost.fullname" $ }}-auth-{{ $g.name }}
   labels:
-    {{- include "static-webhost.labels" . | nindent 4 }}
+    {{- include "static-webhost.labels" $ | nindent 4 }}
+    webhost.gewis.nl/group: {{ $g.name }}
 spec:
   plugin:
     traefik-oidc-auth:
@@ -13,20 +15,23 @@ spec:
           - Name: groups
             AnyOf:
               - "CBC - Application Hosting Team (ADM)"
-              {{- range .Values.oidc.groups }}
+              {{- with $g.oidc }}
+              {{- range .groups }}
               - {{ . | quote }}
               {{- end }}
+              {{- end }}
       Provider:
-        ClientId: {{ .Values.oidc.provider.clientId | quote }}
+        ClientId: {{ $.Values.oidc.provider.clientId | quote }}
         ClientSecret: urn:k8s:secret:oidc-secret:providerClientSecret
-        Url: {{ .Values.oidc.provider.url | quote }}
-        ValidAudience: {{ .Values.oidc.provider.validAudience | quote }}
+        Url: {{ $.Values.oidc.provider.url | quote }}
+        ValidAudience: {{ $.Values.oidc.provider.validAudience | quote }}
       Scopes:
-        {{- range .Values.oidc.scopes }}
+        {{- range $.Values.oidc.scopes }}
         - {{ . | quote }}
         {{- end }}
       Secret: urn:k8s:secret:oidc-secret:pluginSecret
 ---
+{{- end }}
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:

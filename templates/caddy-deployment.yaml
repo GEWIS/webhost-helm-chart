@@ -6,41 +6,17 @@ metadata:
     {{- include "static-webhost.labels" . | nindent 4 }}
     app.kubernetes.io/component: caddy
 spec:
-  replicas: 1
+  replicas: {{ .Values.caddy.replicas }}
   selector:
     matchLabels:
       {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "caddy") | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/caddyfile: {{ include (print $.Template.BasePath "/caddy-configmap.yaml") . | sha256sum }}
       labels:
         {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "caddy") | nindent 8 }}
     spec:
-      securityContext:
-        fsGroup: 1000
-      initContainers:
-        - name: seed-default-index
-          image: "{{ .Values.caddy.image.repository }}:{{ .Values.caddy.image.tag }}"
-          imagePullPolicy: {{ .Values.caddy.image.pullPolicy }}
-          command:
-            - sh
-            - -c
-            - |
-              if [ ! -f /data/.initialized ]; then
-                mkdir -p /data/site
-                install -m 664 /defaults/index.html /data/site/index.html
-                touch /data/.initialized
-              fi
-              # Ensure the editor user (UID 1000 in code-server) owns the served dir
-              # and seeded files, so it can edit them. Idempotent — heals PVCs from
-              # earlier chart versions too.
-              chown -R 1000:1000 /data/site
-              chmod 775 /data/site
-          volumeMounts:
-            - name: data
-              mountPath: /data
-            - name: default-index
-              mountPath: /defaults
-              readOnly: true
       containers:
         - name: caddy
           image: "{{ .Values.caddy.image.repository }}:{{ .Values.caddy.image.tag }}"
@@ -57,6 +33,12 @@ spec:
             - name: caddyfile
               mountPath: /etc/frankenphp/Caddyfile
               subPath: Caddyfile
+            - name: caddyfile
+              mountPath: /etc/frankenphp/prepend.php
+              subPath: prepend.php
+            - name: caddyfile
+              mountPath: /usr/local/etc/php/conf.d/webhost.ini
+              subPath: webhost.ini
           {{- with .Values.caddy.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -68,6 +50,3 @@ spec:
         - name: caddyfile
           configMap:
             name: {{ include "static-webhost.fullname" . }}-caddy
-        - name: default-index
-          configMap:
-            name: {{ include "static-webhost.fullname" . }}-default-index

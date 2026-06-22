@@ -11,19 +11,23 @@ storage:
   # accessModes left fixed at ReadWriteMany; storageClassName intentionally unset
   # so the cluster default RWX provisioner is used.
 
-# Hostnames exposed via the IngressRoute. All domains route to Caddy unauthenticated;
-# the first domain additionally exposes /admin → code-server behind OIDC.
-domains:
-  - example.gewis.nl
+# Domain groups. Each group has one code-server editor (admin UI), reachable at
+# /admin on every domain in the group and gated by that group's OIDC allow-list.
+# Each domain serves its own folder (site/<group>/<domain>) with PHP confined to it.
+domainGroups:
+  - name: example
+    domains:
+      - example.gewis.nl
+    oidc:
+      groups: []
 
 networkPolicy:
   enabled: true
 
 # OIDC auth via traefik-oidc-auth plugin. "CBC - Application Hosting Team (ADM)"
-# always has access (hardcoded in templates/middleware.yaml); any groups listed
-# here are additionally allowed in.
+# always has access (hardcoded in templates/middleware.yaml); per-group
+# domainGroups[].oidc.groups are additionally allowed in for that group.
 oidc:
-  groups: []
   provider:
     url: https://auth.gewis.nl/realms/GEWISWG
     clientId: traefik-auth
@@ -36,10 +40,10 @@ oidc:
   # by emberstack reflector; this chart only mirrors the empty Secret shell.
   secretReflectsFrom: shared-secrets/oidc-auth
 
-# Default landing page seeded into an empty volume on first deploy.
-# The seed init container writes index.html and a .initialized sentinel; once
-# the sentinel exists it's a no-op, so user edits via code-server survive
-# subsequent rollouts.
+# Default landing page seeded into each empty site folder on first deploy.
+# The per-group seed-site init writes index.html + a .state marker once per
+# domain; once the marker exists it's a no-op, so user edits via code-server
+# survive subsequent rollouts.
 defaultPage:
   logoUrl: https://github.com/GEWIS.png
 
@@ -91,6 +95,7 @@ codeServer:
     phpantom.autoUpdate: false
 
 caddy:
+  replicas: 3
   image:
     repository: dunglas/frankenphp
     tag: "1-php8.5-alpine"

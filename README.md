@@ -1,23 +1,42 @@
 # static-webhost
 
-Helm chart for hosting sites at GEWIS. Each release pairs a FrankenPHP (Caddy with
-embedded PHP) web server with an in-browser code-server editor, sharing an RWX volume
-so files can be edited live. Static files and PHP are both served.
+Helm chart for hosting sites at GEWIS. A release serves many sites from a two-level
+`domainGroups → domains` model on one shared RWX volume: one FrankenPHP (Caddy with
+embedded PHP) web server serves every domain from its own folder, and each domain group
+gets its own in-browser code-server editor. Static files and PHP are both served.
+
+## Model
+
+```
+domainGroups:
+  - name: board                 # editor + OIDC allow-list scope; folder name
+    domains: [board.gewis.nl, bestuur.gewis.nl]
+  - name: cie
+    domains: [cie.gewis.nl]
+```
+
+On the shared volume this becomes `site/<group>/<domain>/`. Each domain serves its own
+folder; `/admin` on **every** domain opens that group's editor (which sees only its
+group's per-domain subfolders). Removing a domain archives its folder to
+`site/.archive/`; removing a whole group leaves its folder orphaned (data kept, unserved).
 
 ## What gets deployed
 
-- `PersistentVolumeClaim` — RWX, size from `storage.size`, cluster default storage class.
-- `Deployment` + `Service` — FrankenPHP (Caddy + PHP) serving `/srv` read-only; `.php` is
-  executed via `php_server`, everything else served as static files.
-- `Deployment` + `Service` — code-server editing the same volume; runs non-root with a
-  read-only root filesystem and (when `networkPolicy.enabled`) DNS-only egress.
+- `PersistentVolumeClaim` — RWX, size from `storage.size`; holds the `site/<group>/<domain>/`
+  tree plus `.state/` (chart markers) and `.archive/`.
+- `Deployment` + `Service` (caddy) — FrankenPHP, `caddy.replicas` (default 3), read-only;
+  each domain is routed to its own root `site/<group>/<domain>` and its PHP is confined to
+  that folder via `open_basedir`.
+- `Deployment` + `Service` **per domain group** — code-server editing only that group's
+  folder (subPath mount); non-root, read-only rootfs, DNS-only egress. A root `seed-site`
+  init container seeds/archives/`chown`s the group's subtree before the editor starts.
 - `Job` — installs `codeServer.extensions` (from Open VSX) plus, when `codeServer.phpantom.enabled`,
   the PHPantom PHP language server (`.vsix` + prebuilt binary) onto the shared volume, and re-runs
-  when any of that changes; the only component allowed egress to fetch them.
+  when any of that changes; the only component allowed egress to fetch them. Shared by all editors.
 - `NetworkPolicy` — denies code-server egress except DNS. Requires a CNI that enforces it.
-- `IngressRoute` (Traefik) — every entry in `domains` routes to Caddy.
-  The first domain additionally exposes `/admin` → code-server, gated by OIDC.
-- `Middleware` ×2 — `traefik-oidc-auth` and `stripPrefix /admin`.
+- `IngressRoute` (Traefik) — every domain routes to Caddy; `/admin` on every domain routes
+  to that group's code-server, gated by OIDC.
+- `Middleware` — `traefik-oidc-auth` **per group** plus shared `redirect` + `stripPrefix /admin`.
 - `Secret oidc-secret` — empty shell annotated for reflection from
   `shared-secrets/oidc-auth` by the emberstack reflector.
 
@@ -30,6 +49,14 @@ blocked, the rootfs is read-only, and nothing sensitive is mounted. Extensions a
 pre-installed read-only and the marketplace is disabled, so the editor runs only what the
 chart ships. User `settings.json` is seeded from the chart on each start; in-session edits
 are allowed but reset to the chart defaults on every pod restart.
+
+Group isolation has two layers: each group's editor is mount-isolated (it only mounts
+its own `site/<group>` subPath), and each domain's PHP is confined to its own folder via
+`open_basedir`. The latter is defense-in-depth, not a hard boundary — one shared FrankenPHP
+process serves all groups, so do not treat it as isolation between mutually-untrusted tenants.
+Because the web tier is multi-replica with per-pod `/tmp`, PHP sessions/uploads (default
+`/tmp`) are not shared across replicas; sites relying on PHP sessions need sticky sessions
+or shared session storage.
 
 ## Install via Flux
 
@@ -65,12 +92,17 @@ spec:
   values:
     storage:
       size: 20Gi
-    domains:
-      - myapp.gewis.nl
-    oidc:
-      groups:
-        - CBC - Application Hosting Team (ADM)
+    domainGroups:
+      - name: myapp
+        domains:
+          - myapp.gewis.nl
+        oidc:
+          groups:
+            - "GEWIS - Some Committee"
 ```
+
+`"CBC - Application Hosting Team (ADM)"` always has editor access; per-group
+`oidc.groups` are additionally allowed in for that group.
 
 By convention, target namespaces are `webhost-<release>`; the chart no longer
 enforces this so `targetNamespace` is yours to set.
@@ -81,7 +113,8 @@ enforces this so `targetNamespace` is yours to set.
 helm repo add gewis-webhost https://gewis.github.io/webhost-helm-chart
 helm install myapp gewis-webhost/static-webhost \
   --create-namespace --namespace webhost-myapp \
-  --set 'domains={myapp.gewis.nl}'
+  --set 'domainGroups[0].name=myapp' \
+  --set 'domainGroups[0].domains={myapp.gewis.nl}'
 ```
 
 ## Key values
@@ -89,10 +122,11 @@ helm install myapp gewis-webhost/static-webhost \
 | Key | Description | Default |
 | --- | --- | --- |
 | `storage.size` | Size of the shared RWX volume | `10Gi` |
-| `domains` | List of hosts routed to Caddy; first also serves `/admin` (code-server) | `[example.gewis.nl]` |
-| `oidc.groups` | Group names allowed through the OIDC middleware | `[CBC - Application Hosting Team (ADM)]` |
+| `domainGroups` | List of `{name, domains[], oidc.groups[]}`; one editor per group, each domain served from `site/<group>/<domain>` | `[{name: example, domains: [example.gewis.nl]}]` |
+| `domainGroups[].oidc.groups` | Extra OIDC groups allowed into that group's `/admin` (ADM always allowed) | `[]` |
 | `oidc.provider.url` | OIDC issuer URL | GEWISWG realm |
 | `oidc.secretReflectsFrom` | Source for the reflected OIDC secret | `shared-secrets/oidc-auth` |
+| `caddy.replicas` | FrankenPHP web-server replica count | `3` |
 | `codeServer.image` | code-server editor image | `codercom/code-server:4.125.0` |
 | `caddy.image` | Web server image (FrankenPHP = Caddy + PHP) | `dunglas/frankenphp:1-php8.5-alpine` |
 | `networkPolicy.enabled` | Restrict code-server egress to DNS only | `true` |
@@ -118,5 +152,7 @@ A Nix flake provides Helm:
 ```sh
 nix develop
 helm lint .
-helm template demo . --set 'domains={demo.gewis.nl}'
+helm template demo . \
+  --set 'domainGroups[0].name=demo' \
+  --set 'domainGroups[0].domains={demo.gewis.nl}'
 ```

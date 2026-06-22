@@ -1,10 +1,13 @@
+{{- range $g := .Values.domainGroups }}
+---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "static-webhost.fullname" . }}-code-server
+  name: {{ include "static-webhost.codeServerName" (dict "Context" $ "Group" $g.name) }}
   labels:
-    {{- include "static-webhost.labels" . | nindent 4 }}
+    {{- include "static-webhost.labels" $ | nindent 4 }}
     app.kubernetes.io/component: code-server
+    webhost.gewis.nl/group: {{ $g.name }}
 spec:
   type: ClusterIP
   ports:
@@ -13,4 +16,5 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "code-server") | nindent 4 }}
+    {{- include "static-webhost.codeServerSelectorLabels" (dict "Context" $ "Group" $g.name) | nindent 4 }}
+{{- end }}

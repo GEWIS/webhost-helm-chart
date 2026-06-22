@@ -56,3 +56,28 @@ Call with: (dict "Context" . "Component" "code-server")
 {{ include "static-webhost.selectorLabels" .Context }}
 app.kubernetes.io/component: {{ .Component }}
 {{- end }}
+
+{{/*
+Per-group code-server resource name.
+Call with: (dict "Context" $ "Group" $g.name)
+*/}}
+{{- define "static-webhost.codeServerName" -}}
+{{- printf "%s-cs-%s" (include "static-webhost.fullname" .Context) .Group | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Per-group code-server selector labels.
+Call with: (dict "Context" $ "Group" $g.name)
+*/}}
+{{- define "static-webhost.codeServerSelectorLabels" -}}
+{{ include "static-webhost.selectorLabels" .Context }}
+app.kubernetes.io/component: code-server
+webhost.gewis.nl/group: {{ .Group }}
+{{- end }}
+
+{{/*
+Sanitize a hostname into a Caddy named-matcher token (alnum + underscore).
+*/}}
+{{- define "static-webhost.matcher" -}}
+{{- regexReplaceAll "[^a-zA-Z0-9]" . "_" }}
+{{- end }}

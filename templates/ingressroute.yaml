@@ -9,19 +9,22 @@ spec:
   entryPoints:
     - websecure
   routes:
-    {{- range $d := .Values.domains }}
+    {{- range $g := .Values.domainGroups }}
+    {{- $csName := include "static-webhost.codeServerName" (dict "Context" $ "Group" $g.name) }}
+    {{- range $d := $g.domains }}
     - kind: Rule
       match: Host(`{{ $d }}`)
       services:
         - name: {{ $fullName }}-caddy
           port: 80
-    {{- end }}
     - kind: Rule
-      match: Host(`{{ index .Values.domains 0 }}`) && PathPrefix(`/admin`)
+      match: Host(`{{ $d }}`) && PathPrefix(`/admin`)
       middlewares:
         - name: {{ $fullName }}-admin-slash
-        - name: {{ $fullName }}-auth
+        - name: {{ $fullName }}-auth-{{ $g.name }}
         - name: {{ $fullName }}-strip-admin
       services:
-        - name: {{ $fullName }}-code-server
+        - name: {{ $csName }}
           port: 8080
+    {{- end }}
+    {{- end }}
