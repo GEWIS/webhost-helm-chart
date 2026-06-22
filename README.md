@@ -94,7 +94,7 @@ helm install myapp gewis-webhost/static-webhost \
 | `oidc.provider.url` | OIDC issuer URL | GEWISWG realm |
 | `oidc.secretReflectsFrom` | Source for the reflected OIDC secret | `shared-secrets/oidc-auth` |
 | `codeServer.image` | code-server editor image | `codercom/code-server:4.125.0` |
-| `caddy.image` | Web server image (FrankenPHP = Caddy + PHP) | `dunglas/frankenphp:1-php8.3-alpine` |
+| `caddy.image` | Web server image (FrankenPHP = Caddy + PHP) | `dunglas/frankenphp:1-php8.5-alpine` |
 | `networkPolicy.enabled` | Restrict code-server egress to DNS only | `true` |
 
 See [`values.yaml`](./values.yaml) for the full schema.

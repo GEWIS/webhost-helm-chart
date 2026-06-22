@@ -97,6 +97,6 @@ codeServer:
 caddy:
   image:
     repository: dunglas/frankenphp
-    tag: "1-php8.3-alpine"
+    tag: "1-php8.5-alpine"
     pullPolicy: IfNotPresent
   resources: {}
