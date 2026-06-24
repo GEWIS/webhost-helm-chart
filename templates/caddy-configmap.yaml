@@ -10,6 +10,12 @@ data:
     {
       frankenphp
       auto_https off
+      {{- with .Values.caddy.trustedProxies }}
+      servers {
+        trusted_proxies static {{ join " " . }}
+        client_ip_headers X-Forwarded-For
+      }
+      {{- end }}
     }
 
     :8080 {
@@ -26,10 +32,14 @@ data:
         }
         {{- end }}
         handle {
-          php_server
+          php_server {
+            env REMOTE_ADDR {client_ip}
+          }
         }
         {{- else }}
-        php_server
+        php_server {
+          env REMOTE_ADDR {client_ip}
+        }
         {{- end }}
       }
       {{- end }}

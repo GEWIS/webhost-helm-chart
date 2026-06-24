@@ -102,6 +102,12 @@ codeServer:
 
 caddy:
   replicas: 3
+  # Proxy IP ranges to trust for X-Forwarded-For when resolving the real client
+  # IP, so PHP sees the visitor in REMOTE_ADDR instead of the ingress proxy.
+  # "private_ranges" trusts all RFC1918 ranges, which covers the in-cluster
+  # Traefik. Set to [] to disable (REMOTE_ADDR then = the immediate proxy).
+  trustedProxies:
+    - private_ranges
   image:
     repository: dunglas/frankenphp
     tag: "1-php8.5-alpine"
