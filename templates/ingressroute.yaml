@@ -27,4 +27,13 @@ spec:
         - name: {{ $csName }}
           port: 8080
     {{- end }}
+    {{- if $g.adminDomain }}
+    - kind: Rule
+      match: Host(`{{ $g.adminDomain }}`)
+      middlewares:
+        - name: {{ $fullName }}-auth-{{ $g.name }}
+      services:
+        - name: {{ $csName }}
+          port: 8080
+    {{- end }}
     {{- end }}

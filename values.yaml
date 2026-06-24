@@ -24,6 +24,12 @@ domainGroups:
         # and blocked from HTTP (404), so they can neither leak nor be executed as
         # PHP; the rest of the docroot stays read-only.
         writablePaths: []
+    # Optional. If set, this group's code-server editor is ALSO served at the
+    # root of this hostname (same instance as /admin), OIDC-gated. Point its DNS
+    # at an ingress that bypasses any WAF (e.g. a campus-direct path): serving the
+    # editor at a host root avoids the service-worker breakage that /admin (a
+    # stripped subpath) suffers behind a WAF. Omit to keep only /admin.
+    adminDomain: ""
     oidc:
       groups: []
 

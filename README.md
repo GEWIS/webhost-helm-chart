@@ -48,7 +48,10 @@ so they can neither be downloaded nor executed as PHP.
   when any of that changes; the only component allowed egress to fetch them. Shared by all editors.
 - `NetworkPolicy` — denies code-server egress except DNS. Requires a CNI that enforces it.
 - `IngressRoute` (Traefik) — every domain routes to Caddy; `/admin` on every domain routes
-  to that group's code-server, gated by OIDC.
+  to that group's code-server, gated by OIDC. If a group sets `adminDomain`, that editor is
+  also served at the root of that hostname (OIDC-gated) — point its DNS at a WAF-bypassing
+  path, since code-server's service worker breaks under the stripped `/admin` subpath behind
+  a WAF.
 - `Middleware` — `traefik-oidc-auth` **per group** plus shared `redirect` + `stripPrefix /admin`.
 - `Secret oidc-secret` — empty shell annotated for reflection from
   `shared-secrets/oidc-auth` by the emberstack reflector.
@@ -147,6 +150,7 @@ helm install myapp gewis-webhost/static-webhost \
 | `domainGroups` | List of `{name, domains[], oidc.groups[]}`; one editor per group, each domain served from `site/<group>/<domain>` | `[{name: example, domains: [{name: example.gewis.nl}]}]` |
 | `domainGroups[].domains[].name` | Hostname, served from `site/<group>/<domain>` | — |
 | `domainGroups[].domains[].writablePaths` | Relative dirs under the docroot made writable + persisted (RWX, shared); blocked from HTTP (404) | `[]` |
+| `domainGroups[].adminDomain` | Optional hostname that also serves the group's code-server at its root (OIDC-gated); point DNS at a WAF-bypassing path | `""` |
 | `domainGroups[].oidc.groups` | Extra OIDC groups allowed into that group's `/admin` (ADM always allowed) | `[]` |
 | `oidc.provider.url` | OIDC issuer URL | GEWISWG realm |
 | `oidc.secretReflectsFrom` | Source for the reflected OIDC secret | `shared-secrets/oidc-auth` |
