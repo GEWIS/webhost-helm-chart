@@ -16,10 +16,21 @@ data:
       encode zstd br gzip
       {{- range $g := .Values.domainGroups }}
       {{- range $d := $g.domains }}
-      @{{ include "static-webhost.matcher" $d }} host {{ $d }}
-      handle @{{ include "static-webhost.matcher" $d }} {
-        root * /srv/{{ $g.name }}/{{ $d }}
+      @{{ include "static-webhost.matcher" $d.name }} host {{ $d.name }}
+      handle @{{ include "static-webhost.matcher" $d.name }} {
+        root * /srv/{{ $g.name }}/{{ $d.name }}
+        {{- if $d.writablePaths }}
+        {{- range $p := $d.writablePaths }}
+        handle /{{ $p }}/* {
+          respond 404
+        }
+        {{- end }}
+        handle {
+          php_server
+        }
+        {{- else }}
         php_server
+        {{- end }}
       }
       {{- end }}
       {{- end }}

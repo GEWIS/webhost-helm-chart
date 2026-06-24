@@ -45,7 +45,7 @@ spec:
             - |
               set -e
               GROUP={{ $g.name | quote }}
-              DOMAINS="{{ range $d := $g.domains }}{{ $d }} {{ end }}"
+              DOMAINS="{{ range $d := $g.domains }}{{ $d.name }} {{ end }}"
               mkdir -p "/data/site/$GROUP" "/data/.state/$GROUP" "/data/site/.archive/$GROUP"
               for d in $DOMAINS; do
                 mkdir -p "/data/site/$GROUP/$d"

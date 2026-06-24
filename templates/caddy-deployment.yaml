@@ -1,3 +1,9 @@
+{{- $hasWritable := false }}
+{{- range $g := .Values.domainGroups }}
+{{- range $d := $g.domains }}
+{{- if $d.writablePaths }}{{- $hasWritable = true }}{{- end }}
+{{- end }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,6 +23,31 @@ spec:
       labels:
         {{- include "static-webhost.componentSelectorLabels" (dict "Context" . "Component" "caddy") | nindent 8 }}
     spec:
+      {{- if $hasWritable }}
+      initContainers:
+        - name: seed-writable
+          image: "{{ .Values.caddy.image.repository }}:{{ .Values.caddy.image.tag }}"
+          imagePullPolicy: {{ .Values.caddy.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              {{- range $g := .Values.domainGroups }}
+              {{- range $d := $g.domains }}
+              {{- range $p := $d.writablePaths }}
+              mkdir -p "/data/site/{{ $g.name }}/{{ $d.name }}/{{ $p }}" "/data/.writable/{{ $g.name }}/{{ $d.name }}/{{ $p }}"
+              {{- end }}
+              {{- end }}
+              {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      {{- end }}
       containers:
         - name: caddy
           image: "{{ .Values.caddy.image.repository }}:{{ .Values.caddy.image.tag }}"
@@ -39,6 +70,15 @@ spec:
             - name: caddyfile
               mountPath: /usr/local/etc/php/conf.d/webhost.ini
               subPath: webhost.ini
+            {{- range $g := .Values.domainGroups }}
+            {{- range $d := $g.domains }}
+            {{- range $p := $d.writablePaths }}
+            - name: data
+              mountPath: /srv/{{ $g.name }}/{{ $d.name }}/{{ $p }}
+              subPath: .writable/{{ $g.name }}/{{ $d.name }}/{{ $p }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
           {{- with .Values.caddy.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

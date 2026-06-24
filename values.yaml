@@ -17,7 +17,13 @@ storage:
 domainGroups:
   - name: example
     domains:
-      - example.gewis.nl
+      - name: example.gewis.nl
+        # Relative dirs under this domain's docroot made writable + persisted
+        # (RWX, shared across caddy replicas) so PHP can write at runtime
+        # (caches, uploads). They are mounted from .writable/<group>/<domain>/<path>
+        # and blocked from HTTP (404), so they can neither leak nor be executed as
+        # PHP; the rest of the docroot stays read-only.
+        writablePaths: []
     oidc:
       groups: []
 

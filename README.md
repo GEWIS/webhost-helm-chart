@@ -10,9 +10,13 @@ gets its own in-browser code-server editor. Static files and PHP are both served
 ```
 domainGroups:
   - name: board                 # editor + OIDC allow-list scope; folder name
-    domains: [board.gewis.nl, bestuur.gewis.nl]
+    domains:
+      - name: board.gewis.nl
+      - name: bestuur.gewis.nl
   - name: cie
-    domains: [cie.gewis.nl]
+    domains:
+      - name: cie.gewis.nl
+        writablePaths: [cache]  # dirs PHP may write to (persisted, shared, not served)
 ```
 
 On the shared volume this becomes `site/<group>/<domain>/`. Each domain serves its own
@@ -20,13 +24,22 @@ folder; `/admin` on **every** domain opens that group's editor (which sees only 
 group's per-domain subfolders). Removing a domain archives its folder to
 `site/.archive/`; removing a whole group leaves its folder orphaned (data kept, unserved).
 
+The served tree is read-only at runtime. A domain may declare `writablePaths` — relative
+dirs under its docroot that PHP can write to at runtime (caches, uploads). These are
+mounted read-write from `.writable/<group>/<domain>/<path>` (so they persist on the RWX
+volume and are shared across all caddy replicas) and are blocked from HTTP with a `404`,
+so they can neither be downloaded nor executed as PHP.
+
 ## What gets deployed
 
 - `PersistentVolumeClaim` — RWX, size from `storage.size`; holds the `site/<group>/<domain>/`
-  tree plus `.state/` (chart markers) and `.archive/`.
+  tree plus `.state/` (chart markers), `.archive/`, and `.writable/` (per-domain
+  runtime-writable dirs, see `writablePaths`).
 - `Deployment` + `Service` (caddy) — FrankenPHP, `caddy.replicas` (default 3), read-only;
   each domain is routed to its own root `site/<group>/<domain>` and its PHP is confined to
-  that folder via `open_basedir`.
+  that folder via `open_basedir`. Any `writablePaths` are mounted read-write over their
+  in-docroot location; a `seed-writable` init container pre-creates the mountpoints (the
+  runtime cannot create a mountpoint inside the read-only tree).
 - `Deployment` + `Service` **per domain group** — code-server editing only that group's
   folder (subPath mount); non-root, read-only rootfs, DNS-only egress. A root `seed-site`
   init container seeds/archives/`chown`s the group's subtree before the editor starts.
@@ -57,6 +70,14 @@ process serves all groups, so do not treat it as isolation between mutually-untr
 Because the web tier is multi-replica with per-pod `/tmp`, PHP sessions/uploads (default
 `/tmp`) are not shared across replicas; sites relying on PHP sessions need sticky sessions
 or shared session storage.
+
+The served tree is mounted read-only on the web tier, so a compromised PHP site cannot
+persist a webshell or tamper with content. `writablePaths` opens a deliberate, narrow
+exception: only the listed dirs are writable, they live on the RWX volume (so writes are
+shared across replicas and survive restarts), and they are blocked from HTTP (`404`) so a
+file written there is never served or executed. Concurrent writers are possible at
+`caddy.replicas > 1`; an app that cannot tolerate a torn read should write atomically
+(temp file + `rename`).
 
 ## Install via Flux
 
@@ -95,7 +116,8 @@ spec:
     domainGroups:
       - name: myapp
         domains:
-          - myapp.gewis.nl
+          - name: myapp.gewis.nl
+            writablePaths: []        # e.g. [cache] for PHP runtime writes
         oidc:
           groups:
             - "GEWIS - Some Committee"
@@ -114,7 +136,7 @@ helm repo add gewis-webhost https://gewis.github.io/webhost-helm-chart
 helm install myapp gewis-webhost/static-webhost \
   --create-namespace --namespace webhost-myapp \
   --set 'domainGroups[0].name=myapp' \
-  --set 'domainGroups[0].domains={myapp.gewis.nl}'
+  --set 'domainGroups[0].domains[0].name=myapp.gewis.nl'
 ```
 
 ## Key values
@@ -122,7 +144,9 @@ helm install myapp gewis-webhost/static-webhost \
 | Key | Description | Default |
 | --- | --- | --- |
 | `storage.size` | Size of the shared RWX volume | `10Gi` |
-| `domainGroups` | List of `{name, domains[], oidc.groups[]}`; one editor per group, each domain served from `site/<group>/<domain>` | `[{name: example, domains: [example.gewis.nl]}]` |
+| `domainGroups` | List of `{name, domains[], oidc.groups[]}`; one editor per group, each domain served from `site/<group>/<domain>` | `[{name: example, domains: [{name: example.gewis.nl}]}]` |
+| `domainGroups[].domains[].name` | Hostname, served from `site/<group>/<domain>` | — |
+| `domainGroups[].domains[].writablePaths` | Relative dirs under the docroot made writable + persisted (RWX, shared); blocked from HTTP (404) | `[]` |
 | `domainGroups[].oidc.groups` | Extra OIDC groups allowed into that group's `/admin` (ADM always allowed) | `[]` |
 | `oidc.provider.url` | OIDC issuer URL | GEWISWG realm |
 | `oidc.secretReflectsFrom` | Source for the reflected OIDC secret | `shared-secrets/oidc-auth` |
@@ -154,5 +178,5 @@ nix develop
 helm lint .
 helm template demo . \
   --set 'domainGroups[0].name=demo' \
-  --set 'domainGroups[0].domains={demo.gewis.nl}'
+  --set 'domainGroups[0].domains[0].name=demo.gewis.nl'
 ```

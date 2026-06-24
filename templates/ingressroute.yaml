@@ -13,12 +13,12 @@ spec:
     {{- $csName := include "static-webhost.codeServerName" (dict "Context" $ "Group" $g.name) }}
     {{- range $d := $g.domains }}
     - kind: Rule
-      match: Host(`{{ $d }}`)
+      match: Host(`{{ $d.name }}`)
       services:
         - name: {{ $fullName }}-caddy
           port: 80
     - kind: Rule
-      match: Host(`{{ $d }}`) && PathPrefix(`/admin`)
+      match: Host(`{{ $d.name }}`) && PathPrefix(`/admin`)
       middlewares:
         - name: {{ $fullName }}-admin-slash
         - name: {{ $fullName }}-auth-{{ $g.name }}
