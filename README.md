@@ -17,7 +17,14 @@ domainGroups:
     domains:
       - name: cie.gewis.nl
         writablePaths: [cache]  # dirs PHP may write to (persisted, shared, not served)
+      - name: draft.gewis.nl
+        disabled: true          # deployed but not publicly rendered; /admin still works
 ```
+
+Set a domain's `disabled: true` to deploy it without exposing it: the public Host
+route is absent (traffic 404s at traefik) and the domain gets no caddy handler, so
+nothing renders. The group's code-server stays reachable via `/admin` and
+`adminDomain`; flip the flag back to `false` to publish.
 
 On the shared volume this becomes `site/<group>/<domain>/`. Each domain serves its own
 folder; `/admin` on **every** domain opens that group's editor (which sees only its
@@ -150,6 +157,7 @@ helm install myapp gewis-webhost/static-webhost \
 | `domainGroups` | List of `{name, domains[], oidc.groups[]}`; one editor per group, each domain served from `site/<group>/<domain>` | `[{name: example, domains: [{name: example.gewis.nl}]}]` |
 | `domainGroups[].domains[].name` | Hostname, served from `site/<group>/<domain>` | — |
 | `domainGroups[].domains[].writablePaths` | Relative dirs under the docroot made writable + persisted (RWX, shared); blocked from HTTP (404) | `[]` |
+| `domainGroups[].domains[].disabled` | `true` deploys the site without exposure: no public route (404 at traefik), no caddy handler; `/admin` still works | `false` |
 | `domainGroups[].adminDomain` | Optional hostname that also serves the group's code-server at its root (OIDC-gated); point DNS at a WAF-bypassing path | `""` |
 | `domainGroups[].oidc.groups` | Extra OIDC groups allowed into that group's `/admin` (ADM always allowed) | `[]` |
 | `oidc.provider.url` | OIDC issuer URL | GEWISWG realm |
