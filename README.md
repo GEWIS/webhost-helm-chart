@@ -53,8 +53,10 @@ so they can neither be downloaded nor executed as PHP.
   path, since code-server's service worker breaks under the stripped `/admin` subpath behind
   a WAF.
 - `Middleware` — `traefik-oidc-auth` **per group** plus shared `redirect` + `stripPrefix /admin`.
-- `Secret oidc-secret` — empty shell annotated for reflection from
-  `shared-secrets/oidc-auth` by the emberstack reflector.
+- `ExternalSecret oidc-secret` — `providerClientSecret` and `pluginSecret` from OpenBao
+  `keycloak/<release namespace>/<oidc.provider.clientId>`, through a `SecretStore` with
+  role `keycloak-<release namespace>` and its own `ServiceAccount`. GEWIS/infra
+  `terraform/50_keycloak-config` creates the Keycloak client and that OpenBao path.
 
 ## Security posture
 
@@ -153,7 +155,9 @@ helm install myapp gewis-webhost/static-webhost \
 | `domainGroups[].adminDomain` | Optional hostname that also serves the group's code-server at its root (OIDC-gated); point DNS at a WAF-bypassing path | `""` |
 | `domainGroups[].oidc.groups` | Extra OIDC groups allowed into that group's `/admin` (ADM always allowed) | `[]` |
 | `oidc.provider.url` | OIDC issuer URL | GEWISWG realm |
-| `oidc.secretReflectsFrom` | Source for the reflected OIDC secret | `shared-secrets/oidc-auth` |
+| `oidc.provider.clientId` | Keycloak client of this release; also the expected token audience. Required | `""` |
+| `oidc.openbao.server` | OpenBao address the `SecretStore` reads from | `http://openbao-active.openbao.svc:8200` |
+| `oidc.openbao.mount` | OpenBao KV mount holding the client secrets | `keycloak` |
 | `caddy.replicas` | FrankenPHP web-server replica count | `3` |
 | `codeServer.image` | code-server editor image | `codercom/code-server:4.125.0` |
 | `caddy.image` | Web server image (FrankenPHP = Caddy + PHP) | `dunglas/frankenphp:1-php8.5-alpine` |

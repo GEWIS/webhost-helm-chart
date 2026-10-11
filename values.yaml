@@ -42,15 +42,14 @@ networkPolicy:
 oidc:
   provider:
     url: https://auth.gewis.nl/realms/GEWISWG
-    clientId: traefik-auth
-    validAudience: traefik-auth
+    clientId: ""
   scopes:
     - openid
     - profile
     - email
-  # The actual secret values are reflected in from shared-secrets/oidc-auth
-  # by emberstack reflector; this chart only mirrors the empty Secret shell.
-  secretReflectsFrom: shared-secrets/oidc-auth
+  openbao:
+    server: http://openbao-active.openbao.svc:8200
+    mount: keycloak
 
 # Default landing page seeded into each empty site folder on first deploy.
 # The per-group seed-site init writes index.html + a .state marker once per

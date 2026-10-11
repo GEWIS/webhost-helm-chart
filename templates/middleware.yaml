@@ -24,7 +24,7 @@ spec:
         ClientId: {{ $.Values.oidc.provider.clientId | quote }}
         ClientSecret: urn:k8s:secret:oidc-secret:providerClientSecret
         Url: {{ $.Values.oidc.provider.url | quote }}
-        ValidAudience: {{ $.Values.oidc.provider.validAudience | quote }}
+        ValidAudience: {{ $.Values.oidc.provider.clientId | quote }}
       Scopes:
         {{- range $.Values.oidc.scopes }}
         - {{ . | quote }}
