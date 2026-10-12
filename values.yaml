@@ -18,6 +18,11 @@ domainGroups:
   - name: example
     domains:
       - name: example.gewis.nl
+        # Optional. Set true to deploy the site without exposing it: the public
+        # Host route is not created (traefik answers 404) and the domain has no
+        # caddy handler, so nothing renders. /admin (and adminDomain) keep
+        # working for code-server.
+        disabled: false
         # Relative dirs under this domain's docroot made writable + persisted
         # (RWX, shared across caddy replicas) so PHP can write at runtime
         # (caches, uploads). They are mounted from .writable/<group>/<domain>/<path>
